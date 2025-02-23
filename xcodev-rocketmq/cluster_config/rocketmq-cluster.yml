@@ -1,0 +1,169 @@
+version: '3.8'
+
+
+services:
+  nameser_n1:
+    image: apache/rocketmq:5.3.1
+    container_name: nameser_n1
+    user: root
+    privileged: true
+    ports:
+      - 9876:9876
+    volumes:
+      - /home/rocketmq/cluster/logs/n1:/opt/logs/rocketmqlogs
+    environment:
+      JAVA_OPT_EXT: "-Duser.home=/opt -Xms256m -Xmx256m -Xmn128m -XX:MetaspaceSize=128m  -XX:MaxMetaspaceSize=320m"
+    command: sh mqnamesrv
+    restart: unless-stopped
+    networks:
+      - xcodev_cluster_network
+
+  nameser_n2:
+    image: apache/rocketmq:5.3.1
+    container_name: nameser_n2
+    user: root
+    privileged: true
+    ports:
+      - 9877:9876
+    volumes:
+      - /home/rocketmq/cluster/logs/n2:/opt/logs/rocketmqlogs
+    environment:
+      JAVA_OPT_EXT: "-Duser.home=/opt -Xms256m -Xmx256m -Xmn128m -XX:MetaspaceSize=128m  -XX:MaxMetaspaceSize=320m"
+    command: sh mqnamesrv
+    restart: unless-stopped
+    networks:
+      - xcodev_cluster_network
+
+  broker_m1:
+    image: apache/rocketmq:5.3.1
+    container_name: broker_m1
+    depends_on:
+      - nameser_n1
+      - nameser_n2
+    ports:
+      - 10909:10909
+      - 10911:10911
+      - 10912:10912
+    volumes:
+      - /home/rocketmq/cluster/broker-m-1/conf/broker.conf:/home/rocketmq/conf/broker.conf
+      - /home/rocketmq/cluster/broker-m-1/logs/:/home/rocketmq/logs
+      - /home/rocketmq/cluster/broker-m-1/store/:/home/rocketmq/store
+    environment:
+      NAMESRV_ADDR: "nameser_n1:9876;nameser_n2:9877"
+      JAVA_OPTS: " -Duser.home=/opt"
+      JAVA_OPT_EXT: "-server -Xms256m -Xmx256m -Xmn128m -XX:MetaspaceSize=128m  -XX:MaxMetaspaceSize=320m"
+    command: sh mqbroker -c /home/rocketmq/conf/broker.conf
+    networks:
+      - xcodev_cluster_network
+    restart: unless-stopped
+
+  broker_s1:
+    image: apache/rocketmq:5.3.1
+    container_name: broker_s1
+    depends_on:
+      - nameser_n1
+      - nameser_n2
+    ports:
+      - 12909:10909
+      - 12911:10911
+      - 12912:10912
+    volumes:
+      - /home/rocketmq/cluster/broker-s-1/conf/broker.conf:/home/rocketmq/conf/broker.conf
+      - /home/rocketmq/cluster/broker-s-1/logs/:/home/rocketmq/logs
+      - /home/rocketmq/cluster/broker-s-1/store/:/home/rocketmq/store
+    environment:
+      NAMESRV_ADDR: "nameser_n1:9876;nameser_n2:9877"
+      JAVA_OPTS: " -Duser.home=/opt"
+      JAVA_OPT_EXT: "-server -Xms256m -Xmx256m -Xmn128m -XX:MetaspaceSize=128m  -XX:MaxMetaspaceSize=320m"
+    command: sh mqbroker -c /home/rocketmq/conf/broker.conf
+    networks:
+      - xcodev_cluster_network
+    restart: unless-stopped
+
+  broker_m2:
+    image: apache/rocketmq:5.3.1
+    container_name: broker_m2
+    depends_on:
+      - nameser_n1
+      - nameser_n2
+    ports:
+      - 11909:10909
+      - 11911:10911
+      - 11912:10912
+    volumes:
+      - /home/rocketmq/cluster/broker-m-2/conf/broker.conf:/home/rocketmq/conf/broker.conf
+      - /home/rocketmq/cluster/broker-m-2/logs/:/home/rocketmq/logs
+      - /home/rocketmq/cluster/broker-m-2/store/:/home/rocketmq/store
+    environment:
+      NAMESRV_ADDR: "nameser_n1:9876;nameser_n2:9877"
+      JAVA_OPTS: " -Duser.home=/opt"
+      JAVA_OPT_EXT: "-server -Xms256m -Xmx256m -Xmn128m -XX:MetaspaceSize=128m  -XX:MaxMetaspaceSize=320m"
+    command: sh mqbroker -c /home/rocketmq/conf/broker.conf
+    networks:
+      - xcodev_cluster_network
+    restart: unless-stopped
+
+  broker_s2:
+    image: apache/rocketmq:5.3.1
+    container_name: broker_s2
+    depends_on:
+      - nameser_n1
+      - nameser_n2
+    ports:
+      - 13909:10909
+      - 13911:10911
+      - 13912:10912
+    volumes:
+      - /home/rocketmq/cluster/broker-s-2/conf/broker.conf:/home/rocketmq/conf/broker.conf
+      - /home/rocketmq/cluster/broker-s-2/logs/:/home/rocketmq/logs
+      - /home/rocketmq/cluster/broker-s-2/store/:/home/rocketmq/store
+    environment:
+      NAMESRV_ADDR: "nameser_n1:9876;nameser_n2:9877"
+      JAVA_OPTS: " -Duser.home=/opt"
+      JAVA_OPT_EXT: "-server -Xms256m -Xmx256m -Xmn128m -XX:MetaspaceSize=128m  -XX:MaxMetaspaceSize=320m"
+    command: sh mqbroker -c /home/rocketmq/conf/broker.conf
+    networks:
+      - xcodev_cluster_network
+    restart: unless-stopped
+
+  proxy:
+    image: apache/rocketmq:5.3.1
+    container_name: rmqproxy
+    networks:
+      - xcodev_cluster_network
+    depends_on:
+      - nameser_n1
+      - nameser_n2
+      - broker_m1
+      - broker_m2
+      - broker_s1
+      - broker_s2
+    volumes:
+      - /home/rocketmq/cluster/mq-proxy.json:/home/rocketmq/rocketmq-5.3.1/conf/rmq-proxy.json
+    ports:
+      - 28080:28080
+      - 28081:28081
+    restart: on-failure
+    environment:
+      NAMESRV_ADDR: "nameser_n1:9876;nameser_n2:9877"
+      JAVA_OPTS: " -Duser.home=/opt"
+      JAVA_OPT_EXT: "-server -Xms256m -Xmx256m -Xmn128m -XX:MetaspaceSize=128m  -XX:MaxMetaspaceSize=320m"
+    command: sh mqproxy
+
+  mqconsole:
+    image: apacherocketmq/rocketmq-dashboard:latest
+    container_name: dashboard
+    ports:
+      - 19876:8080
+    environment:
+      JAVA_OPTS: "-Drocketmq.namesrv.addr=nameser_n1:9876;nameser_n2:9877 -Dcom.rocketmq.sendMessageWithVIPChannel=falses"
+    depends_on:
+      - nameser_n1
+      - nameser_n2
+    networks:
+      - xcodev_cluster_network
+    restart: unless-stopped
+
+networks:
+  xcodev_cluster_network:
+    driver: bridge

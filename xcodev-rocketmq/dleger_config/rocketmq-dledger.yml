@@ -1,0 +1,171 @@
+version: '3.8'
+
+x-environment: &base
+  NAMESRV_ADDR: "namesev-0:9876"
+  JAVA_OPT_EXT: "-server -Xms256m -Xmx1024m -Xmn128m -XX:MetaspaceSize=128m  -XX:MaxMetaspaceSize=320m"
+
+
+services:
+  namesev-0:
+    image: apache/rocketmq:5.3.1
+    container_name: namesev-0
+    volumes:
+      - /home/rocketmq/dledger/logs/node1:/opt/logs/rocketmqlogs
+    environment:
+      JAVA_OPT_EXT: "-Duser.home=/opt -Xms256m -Xmx256m -Xmn128m -XX:MetaspaceSize=128m  -XX:MaxMetaspaceSize=320m"
+    ports:
+      - 9876:9876
+    command: sh mqnamesrv
+    restart: always
+    networks:
+      dledger_network:
+        ipv4_address: 172.30.0.2
+
+  namesev-1:
+    image: apache/rocketmq:5.3.1
+    container_name: namesev-1
+    volumes:
+      - /home/rocketmq/dledger/logs/node2:/opt/logs/rocketmqlogs
+    environment:
+      JAVA_OPT_EXT: "-Duser.home=/opt -Xms256m -Xmx256m -Xmn128m -XX:MetaspaceSize=128m  -XX:MaxMetaspaceSize=320m"
+    ports:
+      - 9877:9876
+    command: sh mqnamesrv
+    restart: always
+    networks:
+      dledger_network:
+        ipv4_address: 172.30.0.3
+
+  namesev-2:
+    image: apache/rocketmq:5.3.1
+    container_name: namesev-2
+    volumes:
+      - /home/rocketmq/dledger/logs/node3:/opt/logs/rocketmqlogs
+    environment:
+      JAVA_OPT_EXT: "-Duser.home=/opt -Xms256m -Xmx256m -Xmn128m -XX:MetaspaceSize=128m  -XX:MaxMetaspaceSize=320m"
+    ports:
+      - 9878:9876
+    command: sh mqnamesrv
+    restart: always
+    networks:
+      dledger_network:
+        ipv4_address: 172.30.0.4
+
+  broker0:
+    image: apache/rocketmq:5.3.1
+    container_name: broker0
+    command: sh mqbroker -c /home/rocketmq/conf/broker.conf
+    depends_on:
+      - namesev-0
+      - namesev-1
+      - namesev-2
+    volumes:
+      - /home/rocketmq/dledger/node0/conf/node0.conf:/home/rocketmq/conf/broker.conf
+    #      - /home/rocketmq/dledger/node0/logs/:/home/rocketmq/logs
+    #      - /home/rocketmq/dledger/node0/store/:/home/rocketmq/store
+    ports:
+      - 10911:10911
+      - 10912:10912
+      - 10913:10909
+      - 40910:40911
+    environment:
+      <<: *base
+    restart: always
+    networks:
+      dledger_network:
+        ipv4_address: 172.30.0.5
+
+  broker1:
+    image: apache/rocketmq:5.3.1
+    container_name: broker1
+    command: sh mqbroker -c /home/rocketmq/conf/broker.conf
+    depends_on:
+      - namesev-0
+      - namesev-1
+      - namesev-2
+    volumes:
+      - /home/rocketmq/dledger/node1/conf/node1.conf:/home/rocketmq/conf/broker.conf
+    #      - /home/rocketmq/dledger/node1/logs/:/home/rocketmq/logs
+    #      - /home/rocketmq/dledger/node1/store/:/home/rocketmq/store
+    ports:
+      - 11911:10911
+      - 11912:10912
+      - 11913:10909
+      - 40911:40911
+    environment:
+      <<: *base
+    restart: always
+    networks:
+      dledger_network:
+        ipv4_address: 172.30.0.6
+  broker2:
+    image: apache/rocketmq:5.3.1
+    container_name: broker2
+    command: sh mqbroker -c /home/rocketmq/conf/broker.conf
+    depends_on:
+      - namesev-0
+      - namesev-1
+      - namesev-2
+    volumes:
+      - /home/rocketmq/dledger/node2/conf/node2.conf:/home/rocketmq/conf/broker.conf
+    #      - /home/rocketmq/dledger/node2/logs/:/home/rocketmq/logs
+    #      - /home/rocketmq/dledger/node2/store/:/home/rocketmq/store
+    ports:
+      - 12911:10911
+      - 12912:10912
+      - 12913:10909
+      - 40912:40911
+    environment:
+      <<: *base
+    restart: always
+    networks:
+      dledger_network:
+        ipv4_address: 172.30.0.7
+
+  proxy:
+    image: apache/rocketmq:5.3.1
+    container_name: rmqproxy
+    networks:
+      dledger_network:
+        ipv4_address: 172.30.0.8
+    depends_on:
+      - namesev-0
+      - namesev-1
+      - namesev-2
+      - broker0
+      - broker1
+      - broker2
+    volumes:
+      - /home/rocketmq/dledger/rmq-proxy.json:/home/rocketmq/rocketmq-5.3.1/conf/rmq-proxy.json
+    ports:
+      - 28080:28080
+      - 28081:28081
+    restart: on-failure
+    environment:
+      <<: *base
+      JAVA_OPTS: "-Duser.home=/opt"
+    command: sh mqproxy -pc /home/rocketmq/rocketmq-5.3.1/conf/rmq-proxy.json
+
+  mqconsole:
+    image: apacherocketmq/rocketmq-dashboard:latest
+    container_name: dashboard
+    ports:
+      - 19876:8080
+    environment:
+      <<: *base
+      JAVA_OPTS: "-Dcom.rocketmq.sendMessageWithVIPChannel=falses"
+    depends_on:
+      - namesev-0
+      - namesev-1
+      - namesev-2
+    networks:
+      dledger_network:
+        ipv4_address: 172.30.0.9
+    restart: unless-stopped
+
+networks:
+  dledger_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24
