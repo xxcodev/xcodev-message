@@ -1,0 +1,2 @@
+# NameServer 监听端口
+listenPort=9876
